@@ -141,8 +141,14 @@ def print_tree(
     prefix: str = "",
     is_last: bool = True,
     show_prototypes: bool = False,
+    max_depth: Optional[int] = None,
+    current_depth: int = 0,
 ):
     """Recursively print directory tree with optional prototypes."""
+    # Check if we've reached max depth
+    if max_depth is not None and current_depth >= max_depth:
+        return
+
     # Determine connectors
     connector = "└── " if is_last else "├── "
     continuation = "    " if is_last else "│   "
@@ -164,8 +170,14 @@ def print_tree(
             next_prefix = prefix + continuation
 
             if entry.is_dir():
-                # Recurse into directory
-                print_tree(entry, next_prefix, is_last_entry, show_prototypes)
+                # Recurse into directory (only if we haven't reached max depth)
+                if max_depth is None or current_depth + 1 < max_depth:
+                    print_tree(entry, next_prefix, is_last_entry, show_prototypes, max_depth, current_depth + 1)
+                else:
+                    # Print directory name but don't recurse
+                    dir_connector = "└── " if is_last_entry else "├── "
+                    dir_name = colorize(entry.name, BLUE)
+                    print(f"{next_prefix}{dir_connector}{dir_name}")
             else:
                 # Print file (just the name, not recursing)
                 file_connector = "└── " if is_last_entry else "├── "
@@ -191,6 +203,12 @@ def main():
         "--prototypes",
         action="store_true",
         help="Show function prototypes for .py, .c, .cpp files",
+    )
+    parser.add_argument(
+        "-L", "--level",
+        type=int,
+        default=None,
+        help="Limit recursion depth to specified level",
     )
 
     args = parser.parse_args()
@@ -233,7 +251,7 @@ def main():
     for i, entry in enumerate(entries):
         is_last = i == len(entries) - 1
         if entry.is_dir():
-            print_tree(entry, "", is_last, args.prototypes)
+            print_tree(entry, "", is_last, args.prototypes, args.level, 1)
         else:
             # Handle files at root level
             connector = "└── " if is_last else "├── "
